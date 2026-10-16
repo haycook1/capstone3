@@ -1,0 +1,12 @@
+build/
+.env
+lambda-env.json
+*.log
+*.pid
+__pycache__/
+.pytest_cache/
+requirements-lambda-deploy.txt
+response.json
+set_lambda_env.py
+venv/
+*.zip

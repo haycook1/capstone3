@@ -1,0 +1,8 @@
+python-dotenv
+langgraph
+opensearch-py<3
+requests-aws4auth
+numpy
+onnxruntime
+psycopg2-binary
+sqlglot

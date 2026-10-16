@@ -1,0 +1,87 @@
+import json
+
+import boto3
+
+from tokenomics_logger import log_llm_call
+
+
+bedrock = boto3.client("bedrock-runtime", region_name="us-east-1")
+
+
+def get_model_id() -> str:
+    account_id = boto3.client("sts").get_caller_identity()["Account"]
+    return (
+        "arn:aws:bedrock:us-east-1:"
+        f"{account_id}:inference-profile/"
+        "us.anthropic.claude-sonnet-4-6"
+    )
+
+
+def invoke_claude(
+    prompt: str,
+    max_tokens: int = 500,
+    *,
+    stage: str = "unknown",
+    question: str = "",
+    trace_id: str | None = None,
+) -> dict:
+    body = {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": max_tokens,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+
+    response = bedrock.invoke_model(
+        modelId=get_model_id(),
+        body=json.dumps(body),
+    )
+    result = json.loads(response["body"].read())
+    usage = result.get("usage", {})
+
+    input_tokens = int(usage.get("input_tokens", 0) or 0)
+    output_tokens = int(usage.get("output_tokens", 0) or 0)
+
+    log_llm_call(
+        stage=stage,
+        question=question,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        trace_id=trace_id,
+    )
+
+    return {
+        "text": result["content"][0]["text"],
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+    }
+
+
+def invoke_claude_raw(
+    body: dict,
+    *,
+    stage: str = "unknown",
+    question: str = "",
+    trace_id: str | None = None,
+) -> dict:
+    request_body = {**body}
+    request_body.setdefault(
+        "anthropic_version",
+        "bedrock-2023-05-31",
+    )
+
+    response = bedrock.invoke_model(
+        modelId=get_model_id(),
+        body=json.dumps(request_body),
+    )
+    result = json.loads(response["body"].read())
+    usage = result.get("usage", {})
+
+    log_llm_call(
+        stage=stage,
+        question=question,
+        input_tokens=int(usage.get("input_tokens", 0) or 0),
+        output_tokens=int(usage.get("output_tokens", 0) or 0),
+        trace_id=trace_id,
+    )
+
+    return result
